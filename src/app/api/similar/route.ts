@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateSimilarQuestions } from "@/lib/llm/provider";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 60; // Up to 60 seconds on Vercel Serverless
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -13,13 +15,17 @@ export async function POST(req: NextRequest) {
     let tech = technique;
 
     if (doubtId && !qText) {
-      const doubt = await prisma.doubt.findUnique({ where: { id: doubtId } });
-      if (doubt) {
-        qText = doubt.questionText;
-        t = doubt.topic;
-        st = doubt.subtopic;
-        const shortcuts = JSON.parse(doubt.shortcuts || "[]");
-        tech = shortcuts[0]?.technique || "Standard shortcut";
+      try {
+        const doubt = await prisma.doubt.findUnique({ where: { id: doubtId } });
+        if (doubt) {
+          qText = doubt.questionText;
+          t = doubt.topic;
+          st = doubt.subtopic;
+          const shortcuts = JSON.parse(doubt.shortcuts || "[]");
+          tech = shortcuts[0]?.technique || "Standard shortcut";
+        }
+      } catch (dbErr: any) {
+        console.warn("Could not query doubt for similar:", dbErr?.message);
       }
     }
 
@@ -35,12 +41,16 @@ export async function POST(req: NextRequest) {
     });
 
     if (doubtId) {
-      await prisma.doubt.update({
-        where: { id: doubtId },
-        data: {
-          similarQuestions: JSON.stringify(similar),
-        },
-      });
+      try {
+        await prisma.doubt.update({
+          where: { id: doubtId },
+          data: {
+            similarQuestions: JSON.stringify(similar),
+          },
+        });
+      } catch (dbErr: any) {
+        console.warn("Could not update doubt with similar questions:", dbErr?.message);
+      }
     }
 
     return NextResponse.json({

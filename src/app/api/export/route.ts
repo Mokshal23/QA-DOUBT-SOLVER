@@ -11,10 +11,15 @@ export async function GET(req: NextRequest) {
     if (topic && topic !== "all") where.topic = topic;
     if (status && status !== "all") where.userStatus = status;
 
-    const doubts = await prisma.doubt.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
+    let doubts: any[] = [];
+    try {
+      doubts = await prisma.doubt.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (dbErr: any) {
+      console.warn("Export DB query failed:", dbErr?.message);
+    }
 
     let markdown = `# CAT Quantitative Ability - Personal Revision Pack\n\n`;
     markdown += `*Generated on: ${new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}*\n`;

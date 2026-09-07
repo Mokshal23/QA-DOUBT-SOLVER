@@ -47,10 +47,20 @@ export async function GET(req: NextRequest) {
       orderBy.createdAt = sortOrder;
     }
 
-    const doubts = await prisma.doubt.findMany({
-      where,
-      orderBy,
-    });
+    let doubts: any[] = [];
+    try {
+      doubts = await prisma.doubt.findMany({
+        where,
+        orderBy,
+      });
+    } catch (dbErr: any) {
+      console.warn("Could not fetch doubts from DB (unconfigured or serverless read-only):", dbErr?.message);
+      return NextResponse.json({
+        success: true,
+        doubts: [],
+        warning: "Database uninitialized or in read-only mode.",
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -84,19 +94,24 @@ export async function POST(req: NextRequest) {
       userStatus = "still_confused",
     } = body;
 
-    const doubt = await prisma.doubt.create({
-      data: {
-        questionText,
-        options: JSON.stringify(options),
-        topic,
-        subtopic,
-        difficultyEstimate,
-        traditionalSolution: traditionalSolution || "",
-        shortcuts: JSON.stringify(shortcuts),
-        selfCheckNote,
-        userStatus,
-      },
-    });
+    let doubt = null;
+    try {
+      doubt = await prisma.doubt.create({
+        data: {
+          questionText,
+          options: JSON.stringify(options),
+          topic,
+          subtopic,
+          difficultyEstimate,
+          traditionalSolution: traditionalSolution || "",
+          shortcuts: JSON.stringify(shortcuts),
+          selfCheckNote,
+          userStatus,
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn("Could not create doubt in DB:", dbErr?.message);
+    }
 
     return NextResponse.json({ success: true, doubt });
   } catch (error: any) {

@@ -3,9 +3,14 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const doubts = await prisma.doubt.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    let doubts: any[] = [];
+    try {
+      doubts = await prisma.doubt.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+    } catch (dbErr: any) {
+      console.warn("Could not query doubts for stats:", dbErr?.message);
+    }
 
     const total = doubts.length;
 

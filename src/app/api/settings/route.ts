@@ -3,10 +3,14 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const settings = await prisma.setting.findMany();
     const map: Record<string, string> = {};
-    for (const s of settings) {
-      map[s.key] = s.value;
+    try {
+      const settings = await prisma.setting.findMany();
+      for (const s of settings) {
+        map[s.key] = s.value;
+      }
+    } catch (dbErr: any) {
+      console.warn("Settings DB not accessible, using process.env:", dbErr?.message);
     }
 
     const maskKey = (key?: string) => {
@@ -73,6 +77,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, message: "Settings updated successfully" });
   } catch (error: any) {
     console.error("Error saving settings:", error);
-    return NextResponse.json({ error: error.message || "Failed to save settings" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Could not persist settings to database. If running on Vercel serverless, please set your API keys directly in Vercel Project Settings > Environment Variables." },
+      { status: 500 }
+    );
   }
 }

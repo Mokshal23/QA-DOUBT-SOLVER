@@ -13,34 +13,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    for (const attempt of attempts) {
-      if (!attempt.doubtId) continue;
+    try {
+      for (const attempt of attempts) {
+        if (!attempt.doubtId) continue;
 
-      const doubt = await prisma.doubt.findUnique({
-        where: { id: attempt.doubtId },
-      });
+        const doubt = await prisma.doubt.findUnique({
+          where: { id: attempt.doubtId },
+        });
 
-      if (!doubt) continue;
+        if (!doubt) continue;
 
-      let newStatus = doubt.userStatus;
-      if (attempt.isCorrect) {
-        if (doubt.userStatus === "still_confused") {
-          newStatus = "understood";
-        } else if (attempt.timeSpentSeconds && attempt.timeSpentSeconds <= 35) {
-          newStatus = "mastered";
+        let newStatus = doubt.userStatus;
+        if (attempt.isCorrect) {
+          if (doubt.userStatus === "still_confused") {
+            newStatus = "understood";
+          } else if (attempt.timeSpentSeconds && attempt.timeSpentSeconds <= 35) {
+            newStatus = "mastered";
+          }
+        } else {
+          newStatus = "still_confused";
         }
-      } else {
-        newStatus = "still_confused";
-      }
 
-      await prisma.doubt.update({
-        where: { id: attempt.doubtId },
-        data: {
-          revisitCount: { increment: 1 },
-          lastRevisitedAt: new Date(),
-          userStatus: newStatus,
-        },
-      });
+        await prisma.doubt.update({
+          where: { id: attempt.doubtId },
+          data: {
+            revisitCount: { increment: 1 },
+            lastRevisitedAt: new Date(),
+            userStatus: newStatus,
+          },
+        });
+      }
+    } catch (dbErr: any) {
+      console.warn("Could not persist practice updates to DB:", dbErr?.message);
     }
 
     return NextResponse.json({ success: true, updatedCount: attempts.length });

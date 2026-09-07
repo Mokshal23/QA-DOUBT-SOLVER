@@ -72,9 +72,37 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 ---
 
+## 🚀 Deploying to Vercel
+
+QuantSolver is optimized for deployment on **[Vercel](https://vercel.com)**:
+
+### Step 1: Import to Vercel
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard) and click **"Add New" > "Project"**.
+2. Select and import **`Mokshal23/QA-DOUBT-SOLVER`**.
+3. Framework Preset: **Next.js** (auto-detected).
+
+### Step 2: Configure Environment Variables
+Under **Environment Variables**, add:
+
+| Variable | Value / Description | Required? |
+| :--- | :--- | :--- |
+| `GEMINI_API_KEY` | Your Google Gemini API Key | **Recommended** (Free at Google AI Studio) |
+| `GROQ_API_KEY` | Your Groq Cloud API Key | Optional |
+| `OPENROUTER_API_KEY` | Your OpenRouter API Key | Optional |
+| `OPENAI_API_KEY` | Your OpenAI API Key | Optional |
+| `DATABASE_URL` | Connection URL (e.g., `file:/tmp/dev.db` or cloud DB) | Optional |
+
+### ⚡ Vercel Optimizations Applied:
+- **`maxDuration = 60`**: All AI solving routes allow up to 60-second execution times to accommodate deep multimodal image analysis and mathematical step derivations.
+- **`postinstall: prisma generate`**: Automatically builds `@prisma/client` during Vercel's dependency installation phase so Next.js build never fails on missing client types.
+- **Serverless Resilience**: Core AI solving routes are designed with defensive storage fallbacks, ensuring doubt solutions are always generated and delivered to the user even in ephemeral or read-only serverless environments.
+
+---
+
 ## 💻 Tech Stack
 - **Framework**: [Next.js 16 (App Router + Turbopack)](https://nextjs.org)
 - **Frontend**: React 19, Tailwind CSS v4, Lucide Icons, Canvas Confetti
 - **Math Rendering**: KaTeX, Remark-Math, Rehype-Katex
 - **Database & ORM**: SQLite, Prisma ORM
 - **LLM Gateway**: Google Gemini, Groq Cloud, OpenAI, OpenRouter
+

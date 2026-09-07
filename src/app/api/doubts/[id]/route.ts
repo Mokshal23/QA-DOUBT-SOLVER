@@ -16,13 +16,18 @@ export async function GET(
     }
 
     // Auto-increment revisit count and update lastRevisitedAt
-    const updated = await prisma.doubt.update({
-      where: { id },
-      data: {
-        revisitCount: { increment: 1 },
-        lastRevisitedAt: new Date(),
-      },
-    });
+    let updated = doubt;
+    try {
+      updated = await prisma.doubt.update({
+        where: { id },
+        data: {
+          revisitCount: { increment: 1 },
+          lastRevisitedAt: new Date(),
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn("Could not update revisit count on read-only DB:", dbErr?.message);
+    }
 
     return NextResponse.json({
       success: true,

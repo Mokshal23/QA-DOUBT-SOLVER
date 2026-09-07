@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { deepRethinkQuestion } from "@/lib/llm/provider";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 60; // Up to 60 seconds on Vercel Serverless
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -13,12 +15,16 @@ export async function POST(req: NextRequest) {
     let shortcuts = existingShortcuts;
 
     if (doubtId && (!qText || !opts || !trad)) {
-      const doubt = await prisma.doubt.findUnique({ where: { id: doubtId } });
-      if (doubt) {
-        qText = doubt.questionText;
-        opts = JSON.parse(doubt.options || "[]");
-        trad = doubt.traditionalSolution;
-        shortcuts = JSON.parse(doubt.shortcuts || "[]");
+      try {
+        const doubt = await prisma.doubt.findUnique({ where: { id: doubtId } });
+        if (doubt) {
+          qText = doubt.questionText;
+          opts = JSON.parse(doubt.options || "[]");
+          trad = doubt.traditionalSolution;
+          shortcuts = JSON.parse(doubt.shortcuts || "[]");
+        }
+      } catch (dbErr: any) {
+        console.warn("Could not query doubt for rethink:", dbErr?.message);
       }
     }
 
@@ -34,12 +40,16 @@ export async function POST(req: NextRequest) {
     });
 
     if (doubtId) {
-      await prisma.doubt.update({
-        where: { id: doubtId },
-        data: {
-          deepRethinkSolution: JSON.stringify(rethinkResult),
-        },
-      });
+      try {
+        await prisma.doubt.update({
+          where: { id: doubtId },
+          data: {
+            deepRethinkSolution: JSON.stringify(rethinkResult),
+          },
+        });
+      } catch (dbErr: any) {
+        console.warn("Could not update doubt with rethink solution:", dbErr?.message);
+      }
     }
 
     return NextResponse.json({
