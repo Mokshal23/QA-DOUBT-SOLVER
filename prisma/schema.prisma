@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Doubt {
+  id                  String    @id @default(cuid())
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  // Question metadata
+  sourceImage         String?   // Base64 data URL or path
+  questionText        String
+  options             String    // JSON string array: ["(A) 24", "(B) 36", ...]
+
+  // Categorization
+  topic               String    // Arithmetic, Algebra, Number Systems, Geometry & Mensuration, Modern Math
+  subtopic            String    // e.g. Time Speed & Distance, Percentages, Triangles
+  difficultyEstimate  String    // Easy, Moderate, Hard, CAT 99+
+
+  // Solutions
+  coreIntuition          String?   // 1-2 sentence core mental model
+  jugaadHack             String?   // JSON object: { name, trick_type, worked_steps, est_seconds, why_it_works }
+  patternTrigger         String?   // 5-second exam recognition trigger
+  generalizableFramework String?   // Reusable rule / template for similar questions
+  traditionalSolution    String    // Step-by-step formula solution (with LaTeX math)
+  shortcuts              String    // JSON array: [{ technique, worked_solution, est_seconds, why_fast }]
+  optionTraps            String?   // CAT exam distractor / option trap analysis
+  calcVerdict            String?   // On-screen calculator verdict (useful vs slower)
+  selfCheckNote          String?   // LLM self-reflection note
+  deepRethinkSolution    String?   // Secondary deep-critique topper shortcut
+
+  // User tracking & Revision
+  userStatus          String    @default("still_confused") // still_confused | understood | mastered
+  mistakeTag          String?   // concept_gap | calculation_slip | ran_out_of_time | option_misread | null
+  userNotes           String?   // Free text annotations
+  revisitCount        Int       @default(0)
+  lastRevisitedAt     DateTime?
+  nextReviewAt        DateTime? // For Spaced Repetition
+
+  // Extra generated content
+  similarQuestions    String?   // JSON array of generated similar practice questions
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @default(now())
+}

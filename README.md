@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# QuantSolver — 99+ Percentile CAT Quant Doubt Solver
 
-## Getting Started
+**QuantSolver** is a personal, AI-powered CAT Quantitative Ability mentorship and doubt-solving platform. It moves beyond slow textbook derivations to train your mind on **street-smart ~25-second topper attack vectors**, option elimination hacks, and pattern triggers, alongside step-by-step mathematical proofs.
 
-First, run the development server:
+---
 
+## ⚡ Core Features
+
+### 1. 🚀 Dual-Speed Problem Solving
+- **🔥 Street-Smart Jugaad Hacks**: 10–25s shortcuts used by actual 99+ percentilers (value substitution, parity symmetry, relative scale, option reverse-engineering).
+- **⚡ Fastest Attack Vector**: The optimal, minimal rough-sheet rough work approach.
+- **📐 Methodical Formula Proof**: Complete step-by-step mathematical derivation formatted in rich KaTeX LaTeX.
+- **⚠️ Negative-Marking Guardrails**: Explicit callouts of distractor traps set by CAT question setters.
+
+### 2. 📋 Clipboard & Multimodal OCR
+- Paste screenshots (`Ctrl+V`) directly from your clipboard and press `Enter` to solve immediately.
+- High-speed vision extraction using Gemini Flash with zero-hallucination guardrails.
+- Re-Solve & Verify engine (`R` key) to re-evaluate from first principles with optional student hints.
+
+### 3. ⏱️ Timed Vault Practice & Exam Simulator (`/practice`)
+- Test your entire vault under realistic exam pressure.
+- Real-time per-question stopwatch (Green $\le$30s, Amber 30–60s, Red $>$60s).
+- CAT Marking Scheme: **+3 Marks** for correct answers, **-1 Mark** for wrong answers.
+- Instant SolutionCard reveal with self-grading override.
+- End-of-session performance analytics (Accuracy %, Score, Avg Speed, Review Table).
+
+### 4. 🗄️ Doubt Vault & Knowledge Base (`/repository`)
+- Searchable question repository filtered by Topic, Difficulty, and Mistake Tags (*Formula Forgot*, *Calculation Slip*, *Trap Fallen*).
+- Spaced repetition recall queue.
+- One-click Revision Pack markdown export.
+
+### 5. 🪟 Windows Silent Autostart
+- Built-in Windows Startup hook (`WindowStyle 0`) that runs silently in the background on PC boot without popping up command windows.
+- Pre-flight port resilience check preventing duplicate instances.
+- Handy batch control scripts: `stop_server.bat`, `install_autostart.bat`, and `uninstall_autostart.bat`.
+
+---
+
+## 🛠️ Getting Started
+
+### 1. Prerequisites
+- Node.js (v18 or higher)
+- npm / yarn / pnpm
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository
+git clone https://github.com/Mokshal23/QA-DOUBT-SOLVER.git
+cd QA-DOUBT-SOLVER
+
+# Install dependencies
+npm install
+
+# Initialize the SQLite database
+npx prisma db push
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Configure API Keys
+You can either create a `.env` file from `.env.example`:
+```env
+DATABASE_URL="file:./dev.db"
+GEMINI_API_KEY="your-gemini-api-key"
+GROQ_API_KEY="your-groq-api-key"
+```
+Or simply launch the application and configure your API keys interactively inside the **Settings** modal in the top navigation bar.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Run the Application
+```bash
+npm run dev
+```
+Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 💻 Tech Stack
+- **Framework**: [Next.js 16 (App Router + Turbopack)](https://nextjs.org)
+- **Frontend**: React 19, Tailwind CSS v4, Lucide Icons, Canvas Confetti
+- **Math Rendering**: KaTeX, Remark-Math, Rehype-Katex
+- **Database & ORM**: SQLite, Prisma ORM
+- **LLM Gateway**: Google Gemini, Groq Cloud, OpenAI, OpenRouter
