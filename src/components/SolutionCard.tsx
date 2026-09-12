@@ -24,6 +24,7 @@ import {
 import confetti from "canvas-confetti";
 import { MathRenderer } from "./MathRenderer";
 import { SimilarQuestionsModal } from "./SimilarQuestionsModal";
+import { VideoSolutionModal } from "./VideoSolutionModal";
 
 interface Shortcut {
   technique: string;
@@ -88,6 +89,7 @@ export function SolutionCard({
   const [hintText, setHintText] = useState("");
   const [isGeneratingSimilar, setIsGeneratingSimilar] = useState(false);
   const [isSimilarModalOpen, setIsSimilarModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [similarQuestionsList, setSimilarQuestionsList] = useState<any[]>(doubt.similarQuestions || []);
   const [deepSolution, setDeepSolution] = useState<any>(doubt.deepRethinkSolution || null);
 
@@ -103,6 +105,7 @@ export function SolutionCard({
       if (e.key === "3") handleStatusChange("mastered");
       if (e.key === "r" || e.key === "R") handleReprocess();
       if (e.key === "s" || e.key === "S") handleGenerateSimilar();
+      if (e.key === "v" || e.key === "V") setIsVideoModalOpen(true);
       if (e.key === "Tab") {
         e.preventDefault();
         setActiveTab((prev) => (prev === "shortcuts" ? "traditional" : "shortcuts"));
@@ -317,6 +320,16 @@ export function SolutionCard({
             title="Add a custom correction or target hint before re-solving"
           >
             {showHintBox ? "Close Hint" : "+ Hint"}
+          </button>
+
+          <button
+            onClick={() => setIsVideoModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono text-purple-300 bg-[#160e24] hover:bg-[#221438] rounded border border-purple-800/60 transition-all shadow-sm cursor-pointer"
+            title="Watch automated interactive blackboard video explanation (Hotkey: V)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            <span className="font-medium">Video Explainer</span>
+            <kbd className="hidden sm:inline text-[9px] bg-[#221338] px-1 py-0.2 rounded text-purple-400/90 border border-purple-800/40 font-mono">V</kbd>
           </button>
 
           <button
@@ -740,6 +753,13 @@ export function SolutionCard({
         onClose={() => setIsSimilarModalOpen(false)}
         questions={similarQuestionsList}
         technique={doubt.shortcuts?.[0]?.technique || "Topper Shortcut"}
+      />
+
+      {/* Zero-Cost Interactive Video Explainer Modal */}
+      <VideoSolutionModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        doubt={doubt}
       />
     </div>
   );

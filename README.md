@@ -29,7 +29,19 @@
 - Spaced repetition recall queue.
 - One-click Revision Pack markdown export.
 
-### 5. 🪟 Windows Silent Autostart
+### 5. 🎬 Zero-Cost Automated Video Explainer (`V` Key)
+- Instant, interactive 16:9 animated chalkboard video player generated for any solved doubt at **$0.00 cost**.
+- **Synchronized Voiceover**: Built-in browser neural speech synthesis narrating problem setups, mental models, 25-second shortcuts, and trap warnings.
+- **Dynamic 5-Scene Breakdown**:
+  1. *The Problem & Givens* (KaTeX equations + options breakdown)
+  2. *Core Intuition & Mental Model* (Visual 'Aha!' concept)
+  3. *The 25s Jugaad Shortcut* (Timed speed technique & zero-formula hacks)
+  4. *Formal Step-by-Step Proof* (Textbook mathematical rigor)
+  5. *Option Traps & Exam Takeaways* (Negative-marking warnings)
+- **Interactive Lecture Controls**: Timeline scrubber, scene jump pills, variable speech rate (`0.8x` to `1.5x`), mute toggle, and full-screen theater mode.
+- Hotkey: Press `V` on any solution card to launch the explainer immediately.
+
+### 6. 🪟 Windows Silent Autostart
 - Built-in Windows Startup hook (`WindowStyle 0`) that runs silently in the background on PC boot without popping up command windows.
 - Pre-flight port resilience check preventing duplicate instances.
 - Handy batch control scripts: `stop_server.bat`, `install_autostart.bat`, and `uninstall_autostart.bat`.
