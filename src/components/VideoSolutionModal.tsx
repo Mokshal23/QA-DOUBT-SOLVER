@@ -21,6 +21,8 @@ import {
   Clock,
   BookOpen,
   Award,
+  GraduationCap,
+  Loader2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { MathRenderer } from "./MathRenderer";
@@ -56,6 +58,14 @@ export interface VideoDoubtData {
   optionTraps?: string;
   calcVerdict?: string;
   selfCheckNote?: string;
+}
+
+interface TeacherVideoScript {
+  problem_logic: string;
+  intuition_logic: string;
+  shortcut_logic: string;
+  traditional_logic: string;
+  traps_logic: string;
 }
 
 interface VideoScene {
@@ -120,30 +130,93 @@ export function VideoSolutionModal({
   const [isMuted, setIsMuted] = useState(false);
   const [speechRate, setSpeechRate] = useState<number>(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [narrationMode, setNarrationMode] = useState<"mentor" | "summary">("mentor");
+  const [teacherScript, setTeacherScript] = useState<TeacherVideoScript | null>(null);
+  const [isLoadingScript, setIsLoadingScript] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // 1. Build dynamic scenes based on available solution fields
+  // Fetch deep teacher pedagogical script explaining the underlying logic
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let isMounted = true;
+    setIsLoadingScript(true);
+
+    fetch("/api/video-script", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        doubtId: doubt.id,
+        questionText: doubt.questionText,
+        topic: doubt.topic,
+        subtopic: doubt.subtopic,
+        coreIntuition: doubt.coreIntuition,
+        jugaadHack: doubt.jugaadHack,
+        traditionalSolution: doubt.traditionalSolution,
+        shortcuts: doubt.shortcuts,
+        optionTraps: doubt.optionTraps,
+        calcVerdict: doubt.calcVerdict,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data.success && data.script) {
+          setTeacherScript(data.script);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to fetch teacher script, using local fallback:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingScript(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen, doubt]);
+
+  // Build dynamic scenes based on available solution fields and mentor commentary
   const scenes: VideoScene[] = useMemo(() => {
     const list: VideoScene[] = [];
 
-    // Scene 1: The Problem Breakdown
+    // Scene 1: Problem Breakdown & Setup
+    const problemNarration =
+      narrationMode === "mentor" && teacherScript?.problem_logic
+        ? teacherScript.problem_logic
+        : `Let's examine this problem in ${doubt.topic}, ${doubt.subtopic}. Notice the key quantities given. Rather than rushing into tedious algebra, let's understand what the question is really testing.`;
+
     list.push({
       id: "problem",
-      badge: "Step 1: Setup & Given",
+      badge: "Step 1: Tactical Setup",
       badgeColor: "bg-blue-900/60 text-blue-300 border-blue-700/50",
-      title: "Problem Statement & Givens",
+      title: "Problem Framing & What's Given",
       subtitle: `${doubt.topic} • ${doubt.subtopic}`,
       icon: BookOpen,
-      spokenText: `Welcome to this video solution. Let's inspect the question in ${doubt.topic}, ${doubt.subtopic}. ${cleanTextForSpeech(doubt.questionText)}. Let us break this down step-by-step.`,
+      spokenText: cleanTextForSpeech(problemNarration),
       renderContent: () => (
-        <div className="space-y-4 max-w-2xl mx-auto">
+        <div className="space-y-3.5 max-w-2xl mx-auto">
+          {/* Mentor Logic Callout */}
+          <div className="p-3.5 rounded-xl bg-[#0b1424] border border-blue-800/60 shadow-md">
+            <div className="flex items-center gap-2 text-blue-300 font-mono text-xs mb-1.5">
+              <GraduationCap className="w-4 h-4 text-blue-400" />
+              <span className="font-semibold uppercase tracking-wider">
+                Mentor's Tactical Angle (What to spot first)
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-blue-100/90 font-sans leading-relaxed">
+              {teacherScript?.problem_logic ||
+                `Notice what this problem is really asking. Before writing variables, observe the relationship between the numbers to prevent unnecessary algebraic expansion.`}
+            </p>
+          </div>
+
           <div className="p-4 rounded-xl bg-[#0e121d] border border-blue-900/40 shadow-inner">
-            <h4 className="text-[11px] font-mono uppercase tracking-wider text-blue-400 mb-2">
-              Question Statement
+            <h4 className="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-2">
+              Problem Statement
             </h4>
             <div className="text-sm sm:text-base text-slate-100 font-serif leading-relaxed">
               <MathRenderer content={doubt.questionText} />
@@ -151,11 +224,11 @@ export function VideoSolutionModal({
           </div>
 
           {doubt.options && doubt.options.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {doubt.options.map((opt, i) => (
                 <div
                   key={i}
-                  className="px-3 py-2 rounded-lg bg-[#0b0e17] border border-[#1e2638] text-xs text-slate-300 flex items-center gap-2"
+                  className="px-3 py-1.5 rounded-lg bg-[#0b0e17] border border-[#1e2638] text-xs text-slate-300 flex items-center gap-2"
                 >
                   <span className="w-5 h-5 rounded bg-blue-950/80 border border-blue-800/40 text-blue-300 font-mono text-[10px] flex items-center justify-center shrink-0">
                     {String.fromCharCode(65 + i)}
@@ -171,8 +244,15 @@ export function VideoSolutionModal({
       ),
     });
 
-    // Scene 2: Core Intuition / Visual Mental Model
-    if (doubt.coreIntuition || doubt.patternTrigger) {
+    // Scene 2: Mental Model & Core Intuition
+    if (doubt.coreIntuition || doubt.patternTrigger || teacherScript?.intuition_logic) {
+      const intuitionNarration =
+        narrationMode === "mentor" && teacherScript?.intuition_logic
+          ? teacherScript.intuition_logic
+          : doubt.coreIntuition
+          ? `Here is the fundamental intuition. ${doubt.coreIntuition}. When you visualize the problem this way, the equations become intuitive rather than something to memorize.`
+          : `Recognize the underlying pattern trigger before calculating.`;
+
       list.push({
         id: "intuition",
         badge: "Step 2: Mental Model",
@@ -180,30 +260,40 @@ export function VideoSolutionModal({
         title: "The Core Intuition & 'Aha!' Moment",
         subtitle: "How high scorers visualize the solution without panic",
         icon: Lightbulb,
-        spokenText: doubt.coreIntuition
-          ? `Here is the core intuition. ${cleanTextForSpeech(doubt.coreIntuition)}. ${doubt.patternTrigger ? `Recognize this exam trigger: ${cleanTextForSpeech(doubt.patternTrigger)}` : ""}`
-          : `Exam trigger to spot: ${cleanTextForSpeech(doubt.patternTrigger || "")}`,
+        spokenText: cleanTextForSpeech(intuitionNarration),
         renderContent: () => (
-          <div className="space-y-4 max-w-2xl mx-auto">
+          <div className="space-y-3.5 max-w-2xl mx-auto">
+            {/* Mentor Intuition Explanation */}
+            <div className="p-4 rounded-xl bg-[#17140c] border border-amber-700/60 shadow-md">
+              <div className="flex items-center gap-2 text-amber-300 font-mono text-xs mb-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span className="font-semibold uppercase tracking-wider">
+                  Mentor's Explanation of the Logic
+                </span>
+              </div>
+              <p className="text-sm sm:text-base text-amber-100/95 font-sans leading-relaxed">
+                {teacherScript?.intuition_logic ||
+                  doubt.coreIntuition ||
+                  "Think of the quantities conceptually. When two constraints act together, their net impact is governed by the structural ratio rather than independent calculations."}
+              </p>
+            </div>
+
             {doubt.coreIntuition && (
-              <div className="p-4 sm:p-5 rounded-xl bg-[#14120c] border border-amber-800/50 shadow-md">
-                <div className="flex items-center gap-2 text-amber-300 font-mono text-xs mb-2">
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span className="font-semibold uppercase tracking-wider">
-                    Core Visual Concept
-                  </span>
-                </div>
-                <div className="text-sm sm:text-base text-amber-100/90 font-sans leading-relaxed">
+              <div className="p-3.5 rounded-xl bg-[#10121a] border border-[#202738] text-xs">
+                <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider block mb-1">
+                  Formulaic Core Concept:
+                </span>
+                <div className="text-slate-200 font-light leading-relaxed">
                   <MathRenderer content={doubt.coreIntuition} />
                 </div>
               </div>
             )}
 
             {doubt.patternTrigger && (
-              <div className="p-3.5 rounded-xl bg-[#0d101a] border border-indigo-900/50 flex items-start gap-3 text-xs">
+              <div className="p-3 rounded-xl bg-[#0d101a] border border-indigo-900/50 flex items-start gap-2.5 text-xs">
                 <Target className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
                 <div>
-                  <span className="font-mono text-[11px] text-indigo-300 uppercase tracking-wider block mb-1">
+                  <span className="font-mono text-[10px] text-indigo-300 uppercase tracking-wider block mb-0.5">
                     5-Second Exam Pattern Trigger
                   </span>
                   <div className="text-slate-300 font-light leading-relaxed">
@@ -217,14 +307,18 @@ export function VideoSolutionModal({
       });
     }
 
-    // Scene 3: Street-Smart Jugaad / Speed Hack
-    if (doubt.jugaadHack || (doubt.shortcuts && doubt.shortcuts.length > 0)) {
+    // Scene 3: Speed Shortcut & Zero-Formula Jugaad
+    if (doubt.jugaadHack || (doubt.shortcuts && doubt.shortcuts.length > 0) || teacherScript?.shortcut_logic) {
       const hack = doubt.jugaadHack;
       const primaryShortcut = doubt.shortcuts?.[0];
       const title = hack?.name || primaryShortcut?.technique || "25-Second Speed Technique";
       const steps = hack?.worked_steps || primaryShortcut?.worked_solution || "";
-      const whyItWorks = hack?.why_it_works || primaryShortcut?.why_fast || "";
       const seconds = hack?.est_seconds || primaryShortcut?.est_seconds || 20;
+
+      const shortcutNarration =
+        narrationMode === "mentor" && teacherScript?.shortcut_logic
+          ? teacherScript.shortcut_logic
+          : `Watch the speed shortcut. Instead of tedious calculations, notice what happens when we substitute or eliminate options. The complicated terms cancel out, giving you the answer in seconds.`;
 
       list.push({
         id: "shortcut",
@@ -233,54 +327,81 @@ export function VideoSolutionModal({
         title: title,
         subtitle: "Zero-formula shortcut & option elimination",
         icon: Zap,
-        spokenText: `Now let's see the speed shortcut: ${title}. ${cleanTextForSpeech(steps)}. ${whyItWorks ? `Why this works: ${cleanTextForSpeech(whyItWorks)}` : ""}`,
+        spokenText: cleanTextForSpeech(shortcutNarration),
         renderContent: () => (
-          <div className="space-y-4 max-w-2xl mx-auto">
-            <div className="p-4 sm:p-5 rounded-xl bg-[#091510] border border-emerald-800/60 shadow-md">
-              <div className="flex items-center justify-between pb-2 border-b border-emerald-900/40 mb-3">
+          <div className="space-y-3.5 max-w-2xl mx-auto">
+            {/* Why the shortcut works conceptually */}
+            <div className="p-3.5 rounded-xl bg-[#0a1811] border border-emerald-700/60 shadow-md">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-emerald-300 font-mono text-xs">
                   <Zap className="w-4 h-4 text-emerald-400 animate-pulse" />
                   <span className="font-bold text-sm sm:text-base text-emerald-200">
-                    {title}
+                    Why This Shortcut Bypasses the Algebra
                   </span>
                 </div>
                 <span className="px-2 py-0.5 rounded bg-[#10291f] text-emerald-300 border border-emerald-700/50 font-mono text-[10px]">
                   ⏱️ ≈{seconds}s
                 </span>
               </div>
-
-              <div className="text-sm sm:text-base text-emerald-100/90 leading-relaxed font-sans pl-2 border-l-2 border-emerald-500/50">
-                <MathRenderer content={steps} />
-              </div>
-
-              {whyItWorks && (
-                <div className="mt-3 pt-3 border-t border-emerald-900/30 text-xs text-emerald-400/80 font-mono italic">
-                  💡 <strong>Speed Factor:</strong> <MathRenderer content={whyItWorks} inline />
-                </div>
-              )}
+              <p className="text-xs sm:text-sm text-emerald-100/90 font-sans leading-relaxed">
+                {teacherScript?.shortcut_logic ||
+                  hack?.why_it_works ||
+                  primaryShortcut?.why_fast ||
+                  "By recognizing symmetry or substituting simple integer values, the algebraic expressions cancel out without needing formal expansion."}
+              </p>
             </div>
+
+            {/* Rough sheet worked steps */}
+            {steps && (
+              <div className="p-4 rounded-xl bg-[#070e17] border border-emerald-900/40 text-xs sm:text-sm text-slate-100 font-sans">
+                <span className="font-mono text-[10px] text-emerald-400/90 uppercase tracking-wider block mb-2">
+                  Minimal Rough Sheet Calculation:
+                </span>
+                <div className="pl-3 border-l-2 border-emerald-500/50 leading-relaxed">
+                  <MathRenderer content={steps} />
+                </div>
+              </div>
+            )}
           </div>
         ),
       });
     }
 
     // Scene 4: Traditional Algebraic Derivation
+    const traditionalNarration =
+      narrationMode === "mentor" && teacherScript?.traditional_logic
+        ? teacherScript.traditional_logic
+        : `Here is what is happening under the hood in the formal derivation. Notice why we eliminate denominators first, rearrange terms into standard form, and discard extraneous negative roots.`;
+
     list.push({
       id: "traditional",
       badge: "Step 4: Formal Derivation",
       badgeColor: "bg-cyan-900/60 text-cyan-300 border-cyan-700/50",
       title: "Step-by-Step Formal Proof",
-      subtitle: "Standard mathematical derivation for complete conceptual mastery",
+      subtitle: "Why each algebraic move is chosen",
       icon: CheckCircle,
-      spokenText: `Here is the complete step-by-step mathematical derivation. ${cleanTextForSpeech(doubt.traditionalSolution)}`,
+      spokenText: cleanTextForSpeech(traditionalNarration),
       renderContent: () => (
         <div className="space-y-3 max-w-2xl mx-auto">
-          <div className="p-4 sm:p-5 rounded-xl bg-[#0b1319] border border-cyan-900/50 shadow-inner">
-            <h4 className="text-xs font-mono uppercase tracking-wider text-cyan-400 mb-2 flex items-center gap-1.5">
-              <CheckCircle className="w-3.5 h-3.5 text-cyan-400" />
+          {/* Mentor Logic behind algebraic steps */}
+          <div className="p-3.5 rounded-xl bg-[#09151e] border border-cyan-700/60 shadow-md">
+            <div className="flex items-center gap-2 text-cyan-300 font-mono text-xs mb-1.5">
+              <GraduationCap className="w-4 h-4 text-cyan-400" />
+              <span className="font-semibold uppercase tracking-wider">
+                Mentor's Commentary on the Math
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-cyan-100/90 font-sans leading-relaxed">
+              {teacherScript?.traditional_logic ||
+                "In formal textbook algebra, our first goal is always to clear fractions. Next, we group like terms to form a solvable polynomial. Finally, reject non-physical roots."}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-[#090d14] border border-cyan-900/40 shadow-inner">
+            <h4 className="text-xs font-mono uppercase tracking-wider text-slate-400 mb-2">
               Mathematical Derivation
             </h4>
-            <div className="text-sm sm:text-base text-slate-100 font-serif leading-relaxed max-h-[38vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="text-sm sm:text-base text-slate-100 font-serif leading-relaxed max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
               <MathRenderer content={doubt.traditionalSolution} />
             </div>
           </div>
@@ -288,61 +409,60 @@ export function VideoSolutionModal({
       ),
     });
 
-    // Scene 5: Traps & Takeaway
-    if (doubt.optionTraps || doubt.calcVerdict || doubt.selfCheckNote || doubt.generalizableFramework) {
-      const spokenSummary = [
-        doubt.optionTraps ? `Watch out for option traps: ${cleanTextForSpeech(doubt.optionTraps)}` : "",
-        doubt.calcVerdict ? `Calculation verdict: ${cleanTextForSpeech(doubt.calcVerdict)}` : "",
-        doubt.generalizableFramework ? `Generalizable rule: ${cleanTextForSpeech(doubt.generalizableFramework)}` : "",
-      ]
-        .filter(Boolean)
-        .join(". ");
+    // Scene 5: Option Traps & Examiner Psychology
+    const trapsNarration =
+      narrationMode === "mentor" && teacherScript?.traps_logic
+        ? teacherScript.traps_logic
+        : doubt.optionTraps
+        ? `Here is the psychological trap in the options. ${doubt.optionTraps}. The examiner calculates common student oversights and includes them in the choices.`
+        : `Always re-verify what the question specifically asked for before submitting your answer.`;
 
-      list.push({
-        id: "takeaway",
-        badge: "Final Step: Exam Takeaway",
-        badgeColor: "bg-purple-900/60 text-purple-300 border-purple-700/50",
-        title: "Option Traps & Exam Rules",
-        subtitle: "How to avoid silly mistakes under exam pressure",
-        icon: AlertTriangle,
-        spokenText: spokenSummary || "Remember these key principles whenever you encounter this pattern in the test.",
-        renderContent: () => (
-          <div className="space-y-3 max-w-2xl mx-auto">
-            {doubt.optionTraps && (
-              <div className="p-4 rounded-xl bg-[#170e17] border border-purple-900/50 text-xs text-purple-200">
-                <div className="flex items-center gap-2 text-purple-300 font-mono font-semibold mb-1">
-                  <AlertTriangle className="w-4 h-4 text-purple-400" />
-                  <span>Option Trap Warnings</span>
-                </div>
-                <div className="text-slate-300 leading-relaxed font-sans">
-                  <MathRenderer content={doubt.optionTraps} />
-                </div>
-              </div>
-            )}
-
-            {doubt.generalizableFramework && (
-              <div className="p-3.5 rounded-xl bg-[#0f1422] border border-blue-900/40 text-xs">
-                <span className="text-blue-300 font-mono font-semibold block mb-1">
-                  📐 Reusable Rule / Formula:
-                </span>
-                <div className="text-slate-300 leading-relaxed">
-                  <MathRenderer content={doubt.generalizableFramework} />
-                </div>
-              </div>
-            )}
-
-            {doubt.calcVerdict && (
-              <div className="px-3 py-2 rounded-lg bg-[#0d161a] border border-cyan-800/40 font-mono text-xs text-cyan-300">
-                ⚖️ <strong>Verdict:</strong> {doubt.calcVerdict}
-              </div>
-            )}
+    list.push({
+      id: "takeaway",
+      badge: "Final Step: Exam Traps",
+      badgeColor: "bg-purple-900/60 text-purple-300 border-purple-700/50",
+      title: "Examiner's Mindset & Traps",
+      subtitle: "How question setters trick students into losing marks",
+      icon: AlertTriangle,
+      spokenText: cleanTextForSpeech(trapsNarration),
+      renderContent: () => (
+        <div className="space-y-3 max-w-2xl mx-auto">
+          {/* Examiner's Trap Psychology */}
+          <div className="p-4 rounded-xl bg-[#190f1d] border border-purple-700/60 shadow-md">
+            <div className="flex items-center gap-2 text-purple-300 font-mono font-semibold mb-2">
+              <AlertTriangle className="w-4 h-4 text-purple-400" />
+              <span>Examiner's Psychology & Trap Options</span>
+            </div>
+            <p className="text-xs sm:text-sm text-purple-100/95 font-sans leading-relaxed">
+              {teacherScript?.traps_logic ||
+                doubt.optionTraps ||
+                "Question setters purposely include partial answers—like solving for x when the question asks for 2x + 1. Double check the final target before marking."}
+            </p>
           </div>
-        ),
-      });
-    }
+
+          {doubt.optionTraps && (
+            <div className="p-3 rounded-xl bg-[#110b14] border border-purple-900/40 text-xs text-purple-200">
+              <span className="font-mono text-[10px] text-purple-400 uppercase tracking-wider block mb-1">
+                Specific Trap Alert:
+              </span>
+              <div className="text-slate-300 leading-relaxed font-sans">
+                <MathRenderer content={doubt.optionTraps} />
+              </div>
+            </div>
+          )}
+
+          {doubt.calcVerdict && (
+            <div className="px-3 py-2 rounded-lg bg-[#0d161a] border border-cyan-800/40 font-mono text-xs text-cyan-300 flex items-center justify-between">
+              <span>⚖️ <strong>Calculator Verdict:</strong> {doubt.calcVerdict}</span>
+              <span className="text-[10px] text-slate-400">Time-saving metric</span>
+            </div>
+          )}
+        </div>
+      ),
+    });
 
     return list;
-  }, [doubt]);
+  }, [doubt, teacherScript, narrationMode]);
 
   // Load available neural voices
   useEffect(() => {
@@ -352,15 +472,18 @@ export function VideoSolutionModal({
       const voices = window.speechSynthesis.getVoices();
       if (voices.length > 0) {
         setAvailableVoices(voices);
-        // Prioritize natural sounding English voices
-        const preferred = voices.find(
-          (v) =>
-            (v.name.includes("Natural") ||
-              v.name.includes("Online") ||
-              v.name.includes("Google US") ||
-              v.name.includes("Samantha")) &&
-            v.lang.startsWith("en")
-        ) || voices.find((v) => v.lang.startsWith("en")) || voices[0];
+        const preferred =
+          voices.find(
+            (v) =>
+              (v.name.includes("Natural") ||
+                v.name.includes("Online") ||
+                v.name.includes("Google US") ||
+                v.name.includes("Samantha") ||
+                v.name.includes("Daniel")) &&
+              v.lang.startsWith("en")
+          ) ||
+          voices.find((v) => v.lang.startsWith("en")) ||
+          voices[0];
         setSelectedVoice(preferred);
       }
     };
@@ -404,7 +527,6 @@ export function VideoSolutionModal({
     }
 
     utterance.onend = () => {
-      // Auto-advance to next scene if still in playback mode
       if (index + 1 < scenes.length) {
         setCurrentSceneIndex(index + 1);
       } else {
@@ -425,7 +547,7 @@ export function VideoSolutionModal({
     window.speechSynthesis.speak(utterance);
   };
 
-  // Trigger speech whenever scene or playback state changes
+  // Trigger speech whenever scene, playback state, or teacher script changes
   useEffect(() => {
     if (isOpen && isPlaying) {
       speakCurrentScene(currentSceneIndex);
@@ -434,7 +556,7 @@ export function VideoSolutionModal({
         window.speechSynthesis.cancel();
       }
     }
-  }, [currentSceneIndex, isPlaying, isMuted, speechRate, isOpen]);
+  }, [currentSceneIndex, isPlaying, isMuted, speechRate, isOpen, teacherScript, narrationMode]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -510,19 +632,49 @@ export function VideoSolutionModal({
       <div
         ref={containerRef}
         className={`relative w-full max-w-5xl bg-[#080a10] border border-[#1d2436] rounded-2xl shadow-2xl flex flex-col overflow-hidden ${
-          isFullscreen ? "h-screen max-w-none rounded-none border-none" : "max-h-[92vh]"
+          isFullscreen ? "h-screen max-w-none rounded-none border-none" : "max-h-[94vh]"
         }`}
       >
         {/* Top Video Header Bar */}
-        <div className="px-4 sm:px-6 py-3 bg-[#0c101a] border-b border-[#182033] flex items-center justify-between gap-3">
+        <div className="px-4 sm:px-6 py-2.5 bg-[#0c101a] border-b border-[#182033] flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 truncate">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-purple-950/70 border border-purple-800/50 text-purple-300 font-mono text-xs">
-              <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-              <span className="font-semibold tracking-wide">Video Explainer</span>
+              <GraduationCap className="w-3.5 h-3.5 text-purple-400" />
+              <span className="font-semibold tracking-wide">AI Math Mentor</span>
             </div>
-            <span className="text-xs font-mono text-slate-400 hidden sm:inline truncate">
-              {doubt.topic} &gt; {doubt.subtopic}
-            </span>
+
+            {/* Mentor Mode Toggle */}
+            <div className="hidden sm:flex items-center rounded-lg bg-[#121826] border border-[#20293d] p-0.5 text-[11px] font-mono">
+              <button
+                onClick={() => setNarrationMode("mentor")}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                  narrationMode === "mentor"
+                    ? "bg-purple-600 text-white font-bold shadow-xs"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="Explains the deep logic, reasoning, and why steps work"
+              >
+                👨‍🏫 Mentor Logic
+              </button>
+              <button
+                onClick={() => setNarrationMode("summary")}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                  narrationMode === "summary"
+                    ? "bg-slate-700 text-white font-bold shadow-xs"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="Concise direct step summary"
+              >
+                ⚡ Quick Steps
+              </button>
+            </div>
+
+            {isLoadingScript && (
+              <span className="text-[11px] font-mono text-purple-400 flex items-center gap-1.5 animate-pulse">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Crafting logic explanation...</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -574,9 +726,9 @@ export function VideoSolutionModal({
         </div>
 
         {/* Chalkboard Video Stage (16:9 Aspect Ratio / Flex Fill) */}
-        <div className="relative flex-1 min-h-[360px] sm:min-h-[460px] p-4 sm:p-8 flex flex-col justify-between overflow-y-auto bg-[radial-gradient(#141d2e_1px,transparent_1px)] [background-size:24px_24px] bg-[#07090f]">
+        <div className="relative flex-1 min-h-[380px] sm:min-h-[480px] p-4 sm:p-7 flex flex-col justify-between overflow-y-auto bg-[radial-gradient(#141d2e_1px,transparent_1px)] [background-size:24px_24px] bg-[#07090f]">
           {/* Scene Header */}
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4 pb-3 border-b border-[#141a29]">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-2.5 border-b border-[#141a29]">
             <div className="flex items-center gap-2.5">
               <div className={`p-2 rounded-xl ${currentScene.badgeColor} border`}>
                 <Icon className="w-4 h-4" />
@@ -610,15 +762,20 @@ export function VideoSolutionModal({
             </div>
           </div>
 
-          {/* Real-Time Live Narration Subtitle Box */}
-          <div className="mt-4 p-3 rounded-xl bg-[#090d16]/90 border border-[#172033] shadow-lg backdrop-blur-xs flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-6 h-6 shrink-0">
-              <div className={`w-2.5 h-2.5 rounded-full ${isPlaying ? "bg-emerald-400 animate-ping" : "bg-slate-500"}`} />
-              <div className={`absolute w-2 h-2 rounded-full ${isPlaying ? "bg-emerald-400" : "bg-slate-400"}`} />
+          {/* Real-Time Live Mentor Narration Subtitle Box */}
+          <div className="mt-3.5 p-3 rounded-xl bg-[#090d16]/95 border border-[#1a2338] shadow-lg backdrop-blur-xs flex items-start gap-3">
+            <div className="relative flex items-center justify-center w-6 h-6 shrink-0 mt-0.5">
+              <div className={`w-2.5 h-2.5 rounded-full ${isPlaying ? "bg-purple-400 animate-ping" : "bg-slate-500"}`} />
+              <div className={`absolute w-2 h-2 rounded-full ${isPlaying ? "bg-purple-400" : "bg-slate-400"}`} />
             </div>
-            <p className="text-xs text-slate-300 font-sans leading-relaxed line-clamp-2 italic">
-              &ldquo;{currentScene.spokenText}&rdquo;
-            </p>
+            <div className="flex-1">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-purple-400 block mb-0.5">
+                👨‍🏫 Mentor Voiceover (Explaining Logic):
+              </span>
+              <p className="text-xs sm:text-sm text-slate-200 font-sans leading-relaxed italic">
+                &ldquo;{currentScene.spokenText}&rdquo;
+              </p>
+            </div>
           </div>
         </div>
 
@@ -687,7 +844,7 @@ export function VideoSolutionModal({
                 ) : (
                   <>
                     <Play className="w-4 h-4 fill-white" />
-                    <span>Play Video</span>
+                    <span>Explain Logic</span>
                   </>
                 )}
               </button>
